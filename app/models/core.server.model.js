@@ -176,16 +176,19 @@ exports.getBidHistory = (item_id, done) => {
 //---------------------------------------------------
 
 // Search items by keyword, status, and pagination
-exports.searchItems = (q, status, user_id, limit, offset, done) => {
+exports.searchItems = (q, status, user_id, limit, offset, category_id, done) => {
 
   // SQL query:
   // - Select item details and creator's name
   // - Filter by keyword match in name or description
   let sql = `
     SELECT i.item_id, i.name, i.description, i.starting_bid, i.start_date, i.end_date,
-           i.creator_id, u.first_name, u.last_name
+           i.creator_id, u.first_name, u.last_name,
+           GROUP_CONCAT(c.name) AS category_names       
     FROM items i
     JOIN users u ON i.creator_id = u.user_id
+    LEFT JOIN item_categories ic ON i.item_id = ic.item_id
+    LEFT JOIN categories c ON ic.category_id = c.id
     WHERE (i.name LIKE ? OR i.description LIKE ?)
   `;
 
@@ -218,8 +221,14 @@ exports.searchItems = (q, status, user_id, limit, offset, done) => {
     params.push(Date.now());
   }
 
+  // Category filter
+  if (!isNaN(category_id)) {
+    sql += " AND c.id = ?";
+    params.push(category_id);
+  }
+
   // Apply sorting and pagination
-  sql += " ORDER BY i.end_date ASC LIMIT ? OFFSET ?";
+  sql += " GROUP BY i.item_id ORDER BY i.end_date ASC LIMIT ? OFFSET ?";
   params.push(limit, offset);
 
   // Execute the query and return results
@@ -227,4 +236,16 @@ exports.searchItems = (q, status, user_id, limit, offset, done) => {
     if (err) return done(err);           // Handle DB error
     done(null, rows || []);              // Return results or empty array
   });
+};
+
+//--------------------------------------------
+// Add Item Categories
+//--------------------------------------------
+exports.addItemCategories = (itemId, categoryIds, db) => {
+  // Prepare a reusable SQL statement to insert a row into item_categories
+  const stmt = db.prepare("INSERT INTO item_categories (item_id, category_id) VALUES (?, ?)");
+  // Loop through each category ID in the array and run the insert to pair it with the itemId
+  categoryIds.forEach(catId => stmt.run(itemId, catId));
+  // Release resources
+  stmt.finalize();
 };

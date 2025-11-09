@@ -66,8 +66,23 @@ db.run(sql, [], function(err){
                                 console.log("Questions: reset ID counter")
                                 count++
 
-                                console.log("All data deleted from all tables") 
-                                console.log("****************************************")
+                                db.run("DELETE FROM item_categories", (err) => {
+                                    if (err) console.log("Error wiping item_categories");
+                                    else console.log("Item-Categories: All data deleted");
+                                
+                                    db.run("DELETE FROM categories", (err) => {
+                                        if (err) console.log("Error wiping categories");
+                                        else console.log("Categories: All data deleted");
+                                    
+                                        db.run("DELETE FROM sqlite_sequence WHERE name='categories'", (err) => {
+                                            if (err) console.log("Error resetting categories ID counter");
+                                            else console.log("Categories: reset ID counter");
+
+                                            console.log("All data deleted from all tables") 
+                                            console.log("****************************************")
+                                        })
+                                    })
+                                })                      
                             })
                         })
                     })

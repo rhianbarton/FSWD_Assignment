@@ -21,9 +21,13 @@ module.exports = function(app) {
     .post(authenticate, core.place_bid)
     .get(core.get_bids);
 
-
   // GET /search  - Search for items by keyword, status, and pagination
   // Access: Optional authentication — required only for status filters
   app.route("/search")
     .get(optionalAuth, core.search_items);
+
+  // GET /categories - Get all available categories
+  // Access: Public
+  app.route("/categories")
+    .get(core.get_categories);
 };

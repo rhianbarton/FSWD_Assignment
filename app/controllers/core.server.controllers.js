@@ -17,7 +17,8 @@ const itemSchema = Joi.object({
     .required()
     .messages({
       "number.min": "End date must be in the future"
-    })
+    }),
+  categories: Joi.array().items(Joi.number().integer()).default([]) // Add in category array
 }).strict().options({ convert: true });              // Must only be these fields, any numbers in strings converted
 
 // Schema for placing a bid
@@ -39,6 +40,7 @@ const create_item = (req, res) => {
   }
 
   const endDate = value.end_date;
+  const categories = value.categories || [];
 
   // Must be a valid timestamp in the future
   if (typeof endDate !== "number" || endDate <= Date.now()) {
@@ -48,6 +50,16 @@ const create_item = (req, res) => {
   // If all good create the item and return the item_id it got
   core.createItem(req.user_id, { ...value, end_date: endDate }, (err, item_id) => {
     if (err) return res.status(500).json({ error_message: "Server error" });
+
+    // Link item to categories
+    // Check its an array and not empty
+    if (Array.isArray(categories) && categories.length > 0) {
+      const stmt = req.db.prepare("INSERT INTO item_categories (item_id, category_id) VALUES (?, ?)");
+      // Loop through each catID and pair up
+      categories.forEach(catId => stmt.run(item_id, catId));
+      stmt.finalize();
+    }
+    // Return 201
     res.status(201).json({ item_id });
   });
 };
@@ -139,6 +151,7 @@ const search_items = (req, res) => {
   const status = req.query.status || null;         // Optional status filter (OPEN, BID, ARCHIVE)
   const limit = parseInt(req.query.limit) || 10;   // Max number of items to return
   const offset = parseInt(req.query.offset) || 0;  // Pagination offset
+  const category_id = parseInt(req.query.category_id); // Category filter
 
   // Define allowed status values
   const validStatuses = ["OPEN", "BID", "ARCHIVE"];
@@ -155,9 +168,19 @@ const search_items = (req, res) => {
   }
 
   // Pass all relevant filters to core model and return search results (or empty array if none)
-  core.searchItems(q, status, req.user_id, limit, offset, (err, items) => {
+  core.searchItems(q, status, req.user_id, limit, offset, category_id, (err, items) => {
     if (err) return res.status(500).json({ error_message: "Server error" });
     res.status(200).json(items || []);
+  });
+};
+
+//---------------------------------------------------
+// GET /categories
+//---------------------------------------------------
+const get_categories = (req, res) => {
+  req.db.all("SELECT * FROM categories", [], (err, rows) => {
+    if (err) return res.status(500).json({ error_message: "Failed to fetch categories" });
+    res.status(200).json(rows || []);
   });
 };
 
@@ -166,5 +189,6 @@ module.exports = {
   get_item,
   place_bid,
   get_bids,
-  search_items
+  search_items,
+  get_categories
 };
