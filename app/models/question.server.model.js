@@ -11,7 +11,7 @@ exports.getQuestionsByItem = (item_id, done) => {
   // - Join with users table to get asker's name
   // - Filter by item_id
   // - Order by most recent questions first
-  const sql = `
+   const sql = `
     SELECT q.question_id,
            q.question AS question_text,
            q.answer AS answer_text,

@@ -101,7 +101,7 @@ exports.getIDFromToken = (token, done) => {
 // Get full user profile with selling, bidding, and ended auctions
 //-----------------------------------------------------------------
 
-exports.getUserDetails = (user_id, done) => {
+exports.getUserDetails = (id, done) => {
   const sql_user = `
     SELECT user_id, first_name, last_name
     FROM users
@@ -113,8 +113,7 @@ exports.getUserDetails = (user_id, done) => {
            i.creator_id, u.first_name, u.last_name
     FROM items i
     JOIN users u ON i.creator_id = u.user_id
-    WHERE i.creator_id = ? AND i.end_date > ?
-    ORDER BY i.start_date DESC
+    WHERE i.creator_id = ? 
   `;
 
   const sql_ended = `
@@ -132,7 +131,7 @@ exports.getUserDetails = (user_id, done) => {
     FROM bids b
     JOIN items i ON b.item_id = i.item_id
     JOIN users u ON i.creator_id = u.user_id
-    WHERE b.user_id = ?
+    WHERE b.user_id = ? AND i.creator_id != ?
     ORDER BY b.timestamp DESC
   `;
 
@@ -140,20 +139,20 @@ exports.getUserDetails = (user_id, done) => {
   const now = Date.now();
 
   // Get basic user info
-  db.get(sql_user, [user_id], (err, user) => {
+  db.get(sql_user, [id], (err, user) => {
     if (err) return done(err);
     if (!user) return done(null, null);
 
     // Get active listings (selling)
-    db.all(sql_selling, [user_id, now], (err, selling) => {
+    db.all(sql_selling, [id], (err, selling) => {
       if (err) return done(err);
 
       // Get ended listings (auctions_ended)
-      db.all(sql_ended, [user_id, now], (err, ended) => {
+      db.all(sql_ended, [id], (err, ended) => {
         if (err) return done(err);
 
         // Get items the user has bid on (bidding_on)
-        db.all(sql_bidding, [user_id], (err, bidding) => {
+        db.all(sql_bidding, [id, id], (err, bidding) => {
           if (err) return done(err);
 
           // Attach all sections to the user object
