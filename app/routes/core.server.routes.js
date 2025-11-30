@@ -27,7 +27,10 @@ module.exports = function(app) {
     .get(optionalAuth, core.search_items);
 
   // GET /categories - Get all available categories
+  // POST /categories - Make a new category
   // Access: Public
   app.route("/categories")
-    .get(core.get_categories);
+    .get(core.get_categories)
+    .post(core.create_category);
+
 };

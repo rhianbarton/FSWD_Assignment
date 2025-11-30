@@ -26,6 +26,11 @@ const bidSchema = Joi.object({
   amount: Joi.number().positive().required()         // Amount must be a positive number
 }).strict();                                         // No other fields allowed
 
+// Schema for creating a category
+const categorySchema = Joi.object({
+  name: Joi.string().min(1).required()   // Category name must be entered and not blank
+}).strict();
+
 //---------------------------------------------------
 // POST /item
 //---------------------------------------------------
@@ -51,16 +56,15 @@ const create_item = (req, res) => {
   core.createItem(req.user_id, { ...value, end_date: endDate }, (err, item_id) => {
     if (err) return res.status(500).json({ error_message: "Server error" });
 
-    // Link item to categories
-    // Check its an array and not empty
-    if (Array.isArray(categories) && categories.length > 0) {
-      const stmt = req.db.prepare("INSERT INTO item_categories (item_id, category_id) VALUES (?, ?)");
-      // Loop through each catID and pair up
-      categories.forEach(catId => stmt.run(item_id, catId));
-      stmt.finalize();
-    }
-    // Return 201
+  // Link item to categories
+  if (Array.isArray(categories) && categories.length > 0) {
+    core.addItemCategories(item_id, categories, (err) => {
+      if (err) return res.status(500).json({ error_message: "Failed to link categories" });
+      res.status(201).json({ item_id });
+    });
+  } else {
     res.status(201).json({ item_id });
+  }
   });
 };
 
@@ -178,9 +182,28 @@ const search_items = (req, res) => {
 // GET /categories
 //---------------------------------------------------
 const get_categories = (req, res) => {
-  req.db.all("SELECT * FROM categories", [], (err, rows) => {
-    if (err) return res.status(500).json({ error_message: "Failed to fetch categories" });
+  core.getCategories((err, rows) => {
+    if (err) {
+      return res.status(500).json({ error_message: "Failed to fetch categories" });
+    }
     res.status(200).json(rows || []);
+  });
+};
+
+//---------------------------------------------------
+// POST /categories
+//---------------------------------------------------
+const create_category = (req, res) => {
+  const { error, value } = categorySchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ error_message: error.details[0].message });
+  }
+
+  core.createCategory(value.name, (err, category_id) => {
+    if (err) {
+      return res.status(500).json({ error_message: "Server error" });
+    }
+    res.status(201).json({ id: category_id, name: value.name });
   });
 };
 
@@ -190,5 +213,6 @@ module.exports = {
   place_bid,
   get_bids,
   search_items,
-  get_categories
+  get_categories,
+  create_category
 };

@@ -241,11 +241,32 @@ exports.searchItems = (q, status, user_id, limit, offset, category_id, done) => 
 //--------------------------------------------
 // Add Item Categories
 //--------------------------------------------
-exports.addItemCategories = (itemId, categoryIds, db) => {
-  // Prepare a reusable SQL statement to insert a row into item_categories
+exports.addItemCategories = (itemId, categoryIds, done) => {
   const stmt = db.prepare("INSERT INTO item_categories (item_id, category_id) VALUES (?, ?)");
-  // Loop through each category ID in the array and run the insert to pair it with the itemId
   categoryIds.forEach(catId => stmt.run(itemId, catId));
-  // Release resources
-  stmt.finalize();
+  stmt.finalize(err => {
+    if (done) done(err);
+  });
+};
+
+//---------------------------------------------------
+// Get all categories
+//---------------------------------------------------
+exports.getCategories = (done) => {
+  const sql = "SELECT * FROM categories";
+  db.all(sql, [], (err, rows) => {
+    if (err) return done(err);
+    done(null, rows || []);
+  });
+};
+
+//--------------------------------------------
+// Create a new category
+//--------------------------------------------
+exports.createCategory = (name, done) => {
+  const sql = "INSERT INTO categories (name) VALUES (?)";
+  db.run(sql, [name], function(err) {
+    if (err) return done(err);
+    done(null, this.lastID); // return the new category id
+  });
 };
